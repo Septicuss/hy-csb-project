@@ -60,8 +60,8 @@ const parseCredentials = async (c: Context) => {
 const canAccess = (user: User, note: Note | null): boolean => {
 
     // VULNERABILITY A01:
-    // if (note.username !== user.username) {
-    //  return false
+    // if (note && note.username !== user.username) {
+    //    return false
     // }
 
     return true
