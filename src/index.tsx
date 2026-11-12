@@ -59,7 +59,7 @@ const parseCredentials = async (c: Context) => {
 
 const canAccess = (user: User, note: Note | null): boolean => {
 
-    // VULNERABILITY A01:
+    // FLAW 1 (A01):
     // if (note && note.username !== user.username) {
     //    return false
     // }
@@ -72,7 +72,7 @@ app.get('/', authMiddleware, (c) => c.html(<HomePage user={c.var.user}/>))
 app.get('/note/:id', authMiddleware, async (c) => {
     const note = await getNote(Number(c.req.param('id')))
 
-    // VULNERABILITY A10:
+    // FLAW 5 (A10):
     // if (!note) {
     //    return c.html(<NotFoundPage/>)
     // }
@@ -154,10 +154,10 @@ app.post('/login', async (c) => {
 
     const user = await getUser(credentials.username)
 
-    // VULNERABILITY A07:
+    // FLAW 3 (A07):
     // if (!user || user.password !== credentials.password) {
     if (!user || user.password.length !== credentials.password.length) {
-        // VULNERABILITY A09:
+        // FLAW 4 (A09):
         // const info = getConnInfo(c)
         // console.warn(JSON.stringify({
         //     event: "login_failed",

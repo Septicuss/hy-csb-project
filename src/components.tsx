@@ -35,7 +35,7 @@ export const NotePage: FC<{ note: Note, edit?: boolean }> = ({note, edit = false
                     </>
                 ) : (
                     <>
-                        {/* VULNERABILITY A05:*/}
+                        {/* FLAW 2 (A05):*/}
                         {/* <p>{note.text}</p> */}
                         <p dangerouslySetInnerHTML={{__html: note.text}}></p>
                         <button type="submit">Edit</button>
