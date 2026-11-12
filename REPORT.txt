@@ -1,5 +1,6 @@
 LINK: https://github.com/Septicuss/hy-csb-project
-INSTALLATION: Instructions in README.md. Project is a standard TypeScript Node.js project, so all the same installation instructions apply.
+INSTALLATION: Instructions in README.md. Project is a standard TypeScript Node.js project, so
+all the same installation instructions apply here.
 
 ---
 
@@ -7,13 +8,19 @@ FLAW 1:
 https://github.com/Septicuss/hy-csb-project/blob/5e3ca6befbd7f3a0725ae47688710c928741e7c5/src/index.tsx#L62
 
 Description:
-Flaw 1 is Broken Access Control. The app allows users to create notes, which have a global ID.
-With the flaw, any user can view a note with any ID even if the note isn't theirs (for ex. .../note/1).
+Flaw 1 is Broken Access Control.
+The app allows users to create their own notes, which are tied to the user that created them, but
+have a global integer ID. With the flaw present, any user can view a note with any ID even if the
+note isn't owned by the logged-in user. For example User 1 creates a note which gets an ID of 1,
+if User 2 navigates to .../note/1, they will see someone elses note.
 
 Fix:
-Flaw 1 is fixed by completing the #canAccess() function, by adding a check on whether the users
-username is the same as the username of the user that created the note. If it's not, the function
-returns false and endpoints then either redirect to homepage or show a no permission page.
+Flaw 1 can be fixed by having proper access control checks. In the code, this is kinda already
+started by having a #canAccess() function which given a user and a note check if the user can
+access it. For the sake of the flaw, this function just always returns true. The flaw can be fixed
+by checking whether the user who created the note is the same user as the one trying to access it.
+If they are, the note is shown. If not, the function returns false and endpoints then either
+redirect the user back to homepage or show a "no permission" page.
 
 ---
 
@@ -21,13 +28,16 @@ FLAW 2:
 https://github.com/Septicuss/hy-csb-project/blob/5e3ca6befbd7f3a0725ae47688710c928741e7c5/src/components.tsx#L38
 
 Description:
-Flaw 2 is Injection. Notes are displayed as text in the app. This vulnerability makes it so the
-text is unescaped and can contain injected HTML on the page.
+Flaw 2 is Injection. Users have control over text in the note. When saved, the text is sent to the
+server which then renders a template containing the text. In this flaw, the text that the user submits
+is rendered in an unsafe way (text is not properly escaped), allowing for HTML injections. HTML
+injections are harmful, since another user viewing a note with injected malware is vulnerable to
+losing all of their website data and/or extorted for more if they trust the site.
 
 Fix:
-For demonstrating this flaw I use a specifically dangerous html attribute dangerouslySetInnerHTML={{__html: note.text}}.
-The fix is to instead use the Hono JSX librarys standard format which is safe from injections
-by default (just a  <p>{note.text}</p>)
+For demonstrating this flaw I used a specifically dangerous html attribute dangerouslySetInnerHTML={{__html: note.text}}.
+The fix is to instead use the Hono JSX librarys standard format which escapes the string tags in the text
+to prevent them from being rendered as HTML (just as any decent templating library does).
 
 ---
 
@@ -35,13 +45,17 @@ FLAW 3:
 https://github.com/Septicuss/hy-csb-project/blob/5e3ca6befbd7f3a0725ae47688710c928741e7c5/src/index.tsx#L157
 
 Description:
-Flaw 3 is Authentication Failures. We pretend that someone who wrote this app forgot to properly check if the passwords
-match. We only do a naive length check to compare the passwords, so passwords abcd and efgh are both same and valid
-so you can sign in as any user whose password length you can guess.
+Flaw 3 is Authentication Failures. We pretend that someone who wrote this app forgot to properly check
+if the passwords match. We only do a naive length check to compare the passwords, so passwords "abcd"
+and "efgh" are both same and valid so you can sign in as any user whose password length you can guess.
+This of course works on the assumption that the passwords are in plaintext and can be compared as strings,
+which is not the standard way of doing it. The flaw is more about the principle of accidentally having
+logic which still allows the user to log in despite having invalid credentials.
 
 Fix:
-Compare the passwords properly. Ideally of course this would also include encryption + salting of the password
-to check against the hash :P.
+The fix is to compare the passwords properly by doing a full equality check, instead of just a length one.
+Ideally of course the password system would also feature encrypting and salting the passwords on creation
+and comparing later login attempts against that hash :P.
 
 ---
 
@@ -49,11 +63,18 @@ FLAW 4:
 https://github.com/Septicuss/hy-csb-project/blob/5e3ca6befbd7f3a0725ae47688710c928741e7c5/src/index.tsx#L160
 
 Description:
-Flaw 4 is Security Logging & Alerting Failures. The flaw is that we do not log anything when a login attempt fails.
-So we do not have visibility into whether someone is maliciously trying to bruteforce passwords etc.
+Flaw 4 is Security Logging & Alerting Failures. The flaw relates to logging and observability. A malicious
+actor trying thousands of logins per second in order to bruteforce our users is something we should be able
+to see. The flaw is that we currently do not log anything on failed login attempts. This in practice means
+that the app admins are blind to any sort of malicious activity in the application.
 
 Fix:
-Add a server console warning with some details on the client making the request and what happened (failed to login)
+The fix was to add a console warning log, with some details on the client. The details include the type of
+event (failed login), the time of the attempt and the clients IP address. Even this is not that many
+details to start any investigations, and ideally there would be a lot more logging involved throughout the
+whole application. We for example could store a hash of the users regular IP address and become more
+suspicious of a new IP which is not succeeding at logins and then introduce some sort of banning / login
+cooldown system for that account or entire client.
 
 ---
 
@@ -61,9 +82,13 @@ FLAW 5:
 https://github.com/Septicuss/hy-csb-project/blob/5e3ca6befbd7f3a0725ae47688710c928741e7c5/src/index.tsx#L75
 
 Description:
-Flaw 5 is Mishandling of Exceptional Conditions. To be precise, an exception here is fully unhandled.
-Navigating to a note ID which doesn't exist gives an error to both the client and the server. Could be exploited by
-uhhh spamming errors?
+Flaw 5 is Mishandling of Exceptional Conditions. This flaw is an unhandled edge-case in the application,
+which results in 1) the client seeing an "Internal Server Error" message 2) the server having a stacktrace
+error log. In a worse scenario, the error could result in the crash of the application. The edge-case is
+a user navigating to a note ID which doesn't exist. By spamming this error, a malicious actor could also
+spam the logs of the app with errors.
 
 Fix:
-If a note doesn't exist, return a 404 page
+The fix is to introduce a simple check to see if a note exists. If it doesn't, return a 404 page or redirect
+the user elsewhere. This error is very specific and based on business logic (fetching the note from DB and
+handling a null case), however it is sometimes easy to overlook in early stages of the apps development.
